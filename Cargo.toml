@@ -1,0 +1,10 @@
+[package]
+name = "ec-elgamal"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+curve25519-dalek = { version = "4.1.3", features = ["rand_core", "serde"] }
+serde = { version = "1.0", features = ["derive"] }
+rand = "0.8.5"
+rand_core = "0.6.4"
