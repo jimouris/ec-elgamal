@@ -97,6 +97,14 @@ pub fn elgamal_add(ct1: &ElGamalCiphertext, ct2: &ElGamalCiphertext) -> ElGamalC
     }
 }
 
+/// Multiply an ElGamalCiphertext by a scalar (homomorphic scalar multiplication)
+pub fn elgamal_point_mul(ct: &ElGamalCiphertext, scalar: &Scalar) -> ElGamalCiphertext {
+    ElGamalCiphertext {
+        c1: scalar * ct.c1,
+        c2: scalar * ct.c2,
+    }
+}
+
 /// Rerandomize an ElGamal ciphertext and return the new ciphertext and the randomness used
 pub fn elgamal_rerandomize(
     ciphertext: &ElGamalCiphertext,

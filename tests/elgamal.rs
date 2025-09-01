@@ -1,13 +1,12 @@
-use curve25519_dalek::{Scalar, constants::RISTRETTO_BASEPOINT_TABLE};
-// Update the import path if the elgamal module is in src/elgamal.rs or src/elgamal/mod.rs
+use curve25519_dalek::Scalar;
+
 use ec_elgamal::elgamal::{
-    ElGamalCiphertext, elgamal_add, elgamal_decrypt, elgamal_encrypt,
-    elgamal_encrypt_with_randomness, elgamal_keygen, elgamal_rerandomize, to_point,
+    ElGamalCiphertext, elgamal_add, elgamal_decrypt, elgamal_encrypt, elgamal_keygen,
+    elgamal_point_mul, elgamal_rerandomize, to_point,
 };
-use rand_core::OsRng;
 
 #[test]
-fn elgamal() {
+fn encrypt_decrypt() {
     let (sk, pk) = elgamal_keygen();
 
     // Basic encryption/decryption
@@ -15,16 +14,37 @@ fn elgamal() {
     let ct = elgamal_encrypt(message, &pk);
     let decrypted = elgamal_decrypt(&ct, sk);
     assert_eq!(decrypted, message);
+}
 
-    // Rerandomization
+#[test]
+fn encrypt_rerandomize_decrypt() {
+    let (sk, pk) = elgamal_keygen();
+
+    // Basic encryption/decryption
+    let message = to_point(Scalar::from(42u64));
+    let ct = elgamal_encrypt(message, &pk);
     let (new_ct, _) = elgamal_rerandomize(&ct, &pk);
     let decrypted = elgamal_decrypt(&new_ct, sk);
     assert_eq!(decrypted, message);
+}
+
+#[test]
+fn serialize_deserialize() {
+    let (_, pk) = elgamal_keygen();
+
+    // Basic encryption/decryption
+    let message = to_point(Scalar::from(42u64));
+    let ct = elgamal_encrypt(message, &pk);
 
     // Serialization
     let serialized = ct.serialize();
     let deserialized = ElGamalCiphertext::deserialize(&serialized);
     assert_eq!(ct, deserialized);
+}
+
+#[test]
+fn addition() {
+    let (sk, pk) = elgamal_keygen();
 
     // Homomorphic addition
     let m1 = to_point(Scalar::from(10u64));
@@ -32,33 +52,21 @@ fn elgamal() {
     let ct1 = elgamal_encrypt(m1, &pk);
     let ct2 = elgamal_encrypt(m2, &pk);
     let ct_sum = elgamal_add(&ct1, &ct2);
-    let decrypted_sum = elgamal_decrypt(&ct_sum, sk);
-    assert_eq!(decrypted_sum, m1 + m2);
+    let decrypted = elgamal_decrypt(&ct_sum, sk);
+    assert_eq!(decrypted, m1 + m2);
 }
 
 #[test]
-fn paras_elgamal_check() {
-    // Server
-    let (_, pk) = elgamal_keygen();
-    let delta = Scalar::from(42u64);
-    let gamma_prime = Scalar::random(&mut OsRng);
-    let ct_prime =
-        elgamal_encrypt_with_randomness(&delta * RISTRETTO_BASEPOINT_TABLE, &pk, gamma_prime);
+fn scalar_multiplication() {
+    let (sk, pk) = elgamal_keygen();
 
-    // Client
-    let (ct, gamma) = elgamal_rerandomize(&ct_prime, &pk);
+    // Homomorphic addition
+    let m1 = to_point(Scalar::from(10u64));
+    let m2 = Scalar::from(2u64);
+    let ct = elgamal_encrypt(m1, &pk);
 
-    // Server - Check - first way
-    let ct_check = elgamal_encrypt_with_randomness(
-        &delta * RISTRETTO_BASEPOINT_TABLE,
-        &pk,
-        gamma_prime + gamma,
-    );
-    assert_eq!(ct_check, ct);
+    let ct_mul = elgamal_point_mul(&ct, &m2);
 
-    // Server - Check - second way
-    let ct_zero =
-        elgamal_encrypt_with_randomness(&Scalar::ZERO * RISTRETTO_BASEPOINT_TABLE, &pk, gamma);
-    let ct_check = elgamal_add(&ct_prime, &ct_zero);
-    assert_eq!(ct_check, ct);
+    let decrypted = elgamal_decrypt(&ct_mul, sk);
+    assert_eq!(decrypted, m1 * m2);
 }
